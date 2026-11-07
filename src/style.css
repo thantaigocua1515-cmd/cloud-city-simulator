@@ -1326,3 +1326,9 @@ kbd {
     width: 57%;
   }
 }
+
+@media (max-height: 500px) and (min-width: 651px) {
+  .topbar {
+    width: calc(57% - 28px);
+  }
+}

@@ -136,7 +136,7 @@ function App() {
   }, [paused, !!city]);
   // A short debounce coalesces edits; transactions remain ordered by IndexedDB.
   useEffect(() => {
-    if (!city || !storageReady) return;
+    if (!city || !storageReady || city === savedCity) return;
     setSaveState("Saving…");
     let active = true;
     const id = window.setTimeout(() => {
@@ -156,7 +156,7 @@ function App() {
       active = false;
       clearTimeout(id);
     };
-  }, [city, storageReady]);
+  }, [city, storageReady, savedCity]);
   useEffect(() => {
     const persist = () => {
       const c = current.current.city;

@@ -72,6 +72,7 @@ describe("resource economy", () => {
   it("caps coins without destroying migrated balances above the cap", () => {
     const city = { ...newCity(), credits: ECONOMY.caps.credits - 1 };
     expect(advance(city).credits).toBe(ECONOMY.caps.credits);
+    expect(remove(city, 4, 5).credits).toBe(ECONOMY.caps.credits);
     expect(
       advance({ ...city, credits: ECONOMY.caps.credits + 99 }).credits,
     ).toBe(ECONOMY.caps.credits + 99);
