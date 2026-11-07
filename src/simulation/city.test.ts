@@ -60,7 +60,14 @@ describe("city rules", () => {
   });
   it("advances deterministically with derived population and income", () => {
     const city = place(place(empty(), "cottage", 0, 0, 0), "turbine", 1, 0, 0);
-    expect(stats(city)).toMatchObject({ population: 0, capacity: 4, income: 8, happiness: 55, generated: 12, demand: 1 });
+    expect(stats(city)).toMatchObject({
+      population: 0,
+      capacity: 4,
+      income: 8,
+      happiness: 55,
+      generated: 12,
+      demand: 1,
+    });
     expect(advance(city)).toEqual({
       ...city,
       credits: city.credits + 8,

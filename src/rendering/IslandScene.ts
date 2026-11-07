@@ -14,12 +14,21 @@ import type {
   City,
   Rotation,
 } from "../simulation/city";
-import { CATALOG, footprint } from "../simulation/city";
+import { CATALOG, ECONOMY, footprint } from "../simulation/city";
 import "@babylonjs/core/Culling/ray";
 import "@babylonjs/core/Collisions/pickingInfo";
 
 export class IslandScene {
   private engine: Engine;
+  private sky: HemisphericLight;
+  private sun: DirectionalLight;
+  private clouds: { mesh: Mesh; x: number; y: number; phase: number }[] = [];
+  private visualTime = 0;
+  private paused = false;
+  private night = false;
+  private readonly reducedMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)",
+  ).matches;
   private scene: Scene;
   private camera: ArcRotateCamera;
   private models = new Map<number, Mesh>();
@@ -52,10 +61,10 @@ export class IslandScene {
       this.scene,
     );
     this.camera.mode = 1; // orthographic projection
-    new HemisphericLight("sky", new Vector3(0, 1, 0), this.scene).intensity =
-      0.7;
-    const sun = new DirectionalLight("sun", new Vector3(-1, -2, 1), this.scene);
-    sun.intensity = 0.55;
+    this.sky = new HemisphericLight("sky", new Vector3(0, 1, 0), this.scene);
+    this.sky.intensity = 0.7;
+    this.sun = new DirectionalLight("sun", new Vector3(-1, -2, 1), this.scene);
+    this.sun.intensity = 0.55;
     const slab = MeshBuilder.CreateBox(
       "earth",
       { width: 12.4, depth: 12.4, height: 1.25 },
@@ -64,15 +73,23 @@ export class IslandScene {
     slab.position.y = -0.72;
     slab.material = this.material("#b5b79a");
     slab.isPickable = false;
-    const rock = MeshBuilder.CreateCylinder(
-      "floating-rock",
-      { diameterTop: 15.5, diameterBottom: 3, height: 3.3, tessellation: 5 },
-      this.scene,
-    );
-    rock.position.y = -2.7;
-    rock.rotation.y = Math.PI / 4;
-    rock.material = this.material("#a5ad9a");
-    rock.isPickable = false;
+    // Faceted stone tiers sit beneath the full grid instead of intersecting its surface.
+    for (let i = 0; i < 3; i++) {
+      const rock = MeshBuilder.CreateCylinder(
+        `floating-rock-${i}`,
+        {
+          diameterTop: 12 - i * 2.5,
+          diameterBottom: 7 - i * 2.5,
+          height: 2.2,
+          tessellation: 6,
+        },
+        this.scene,
+      );
+      rock.position.set(i * 0.22, -2.2 - i * 2, 0);
+      rock.rotation.y = Math.PI / 6 + i * 0.2;
+      rock.material = this.material(["#959d8c", "#7c8d85", "#687d7e"][i]);
+      rock.isPickable = false;
+    }
     for (let x = 0; x < 12; x++)
       for (let z = 0; z < 12; z++) {
         const tile = MeshBuilder.CreateBox(
@@ -84,21 +101,25 @@ export class IslandScene {
         tile.material = this.material((x + z) % 2 ? "#acbf91" : "#b2c598");
         tile.metadata = { x, z };
       }
-    // Decorative drifting clouds and edge trees are non-interactive placeholder geometry.
+    // Eight low-poly clouds: three shared-material puffs each, no textures or particles.
     for (let i = 0; i < 8; i++) {
-      const cloud = MeshBuilder.CreateSphere(
-        `cloud-${i}`,
-        { diameter: 1, segments: 8 },
-        this.scene,
-      );
-      cloud.position.set(
-        Math.sin(i * 2.4) * 11,
-        -2 - (i % 3),
-        Math.cos(i * 2.4) * 10,
-      );
-      cloud.scaling.set(2.8, 0.7, 1.5);
-      cloud.material = this.material("#f8faf4");
-      cloud.isPickable = false;
+      const root = new Mesh(`cloud-${i}`, this.scene);
+      const x = Math.sin(i * 2.4) * 11,
+        y = -2 - (i % 3);
+      root.position.set(x, y, Math.cos(i * 2.4) * 10);
+      for (let puff = 0; puff < 3; puff++) {
+        const cloud = MeshBuilder.CreateSphere(
+          "cloud-puff",
+          { diameter: 1, segments: 6 },
+          this.scene,
+        );
+        cloud.parent = root;
+        cloud.position.x = (puff - 1) * 0.9;
+        cloud.scaling.set(1.7, 0.65 + (puff === 1 ? 0.35 : 0), 1.1);
+        cloud.material = this.material("#f8faf4");
+        cloud.isPickable = false;
+      }
+      this.clouds.push({ mesh: root, x, y, phase: i * 0.8 });
     }
     for (const [x, z] of [
       [-5.5, -5.5],
@@ -127,7 +148,18 @@ export class IslandScene {
     });
     this.resizeObserver.observe(canvas);
     this.projection();
-    this.engine.runRenderLoop(() => this.scene.render());
+    this.engine.runRenderLoop(() => {
+      if (!this.paused && !this.reducedMotion) {
+        this.visualTime += Math.min(this.engine.getDeltaTime(), 100) / 1000;
+        for (const cloud of this.clouds) {
+          cloud.mesh.position.x =
+            cloud.x + Math.sin(this.visualTime * 0.09 + cloud.phase) * 1.4;
+          cloud.mesh.position.y =
+            cloud.y + Math.sin(this.visualTime * 0.14 + cloud.phase) * 0.18;
+        }
+      }
+      this.scene.render();
+    });
   }
   private material(hex: string, alpha = 1) {
     const key = hex + alpha;
@@ -226,6 +258,83 @@ export class IslandScene {
         blade.position.x = Math.sin(-blade.rotation.z) * 0.3;
         blade.position.y += Math.cos(blade.rotation.z) * 0.3;
       }
+    } else if (b.kind === "lumberMill") {
+      this.box(root, "mill-base", 1.85, 0.12, 0.85, 0.06, "#8a9a78");
+      this.box(root, "mill-shed", 0.85, 0.7, 0.7, 0.42, "#b68d62", -0.4);
+      this.box(root, "mill-roof", 1.05, 0.13, 0.9, 0.83, "#718775", -0.4);
+      for (let i = 0; i < 3; i++)
+        this.box(
+          root,
+          "timber",
+          0.7,
+          0.14,
+          0.16,
+          0.18 + i * 0.15,
+          "#cfaa7d",
+          0.55,
+        );
+    } else if (b.kind === "harvester") {
+      this.box(root, "harvester-deck", 0.85, 0.16, 1.8, 0.08, "#859caa");
+      this.box(root, "drill-mast", 0.16, 1.5, 0.16, 0.86, "#6f8594", 0, 0.35);
+      this.box(root, "drill-arm", 0.15, 0.15, 1.05, 1.5, "#b7c7ca");
+      const crystal = MeshBuilder.CreateSphere(
+        "raw-crystal",
+        { diameter: 0.7, segments: 4 },
+        this.scene,
+      );
+      crystal.parent = root;
+      crystal.position.set(0, 0.65, -0.4);
+      crystal.scaling.set(0.7, 1.5, 0.7);
+      crystal.material = this.material("#b3a4e2");
+      crystal.isPickable = false;
+    } else if (b.kind === "powerPlant") {
+      this.box(root, "plant-deck", 1.85, 0.2, 1.85, 0.1, "#7f999c");
+      this.box(root, "plant-hall", 1.4, 0.7, 1.2, 0.55, "#a5b6bb");
+      for (const x of [-0.5, 0.5]) {
+        const stack = MeshBuilder.CreateCylinder(
+          "plant-stack",
+          { diameter: 0.3, height: 1.1, tessellation: 8 },
+          this.scene,
+        );
+        stack.parent = root;
+        stack.position.set(x, 1.3, 0.45);
+        stack.material = this.material("#718d9d");
+        stack.isPickable = false;
+      }
+      const core = MeshBuilder.CreateSphere(
+        "crystal-core",
+        { diameter: 0.7, segments: 6 },
+        this.scene,
+      );
+      core.parent = root;
+      core.position.set(0, 1.04, -0.25);
+      core.material = this.material("#b3a4e2");
+      core.isPickable = false;
+    } else if (b.kind === "plaza") {
+      this.box(root, "plaza-paving", 1.9, 0.08, 1.9, 0.04, "#d2c8ae");
+      const fountain = MeshBuilder.CreateCylinder(
+        "fountain",
+        { diameter: 0.85, height: 0.24, tessellation: 10 },
+        this.scene,
+      );
+      fountain.parent = root;
+      fountain.position.y = 0.2;
+      fountain.material = this.material("#9dbfc2");
+      fountain.isPickable = false;
+      this.box(root, "fountain-column", 0.18, 0.65, 0.18, 0.46, "#e5dcc4");
+      this.tree(-0.65, 0.6, root);
+      this.tree(0.65, -0.6, root);
+      this.box(
+        root,
+        "plaza-bench",
+        0.65,
+        0.17,
+        0.18,
+        0.18,
+        "#ae8f70",
+        0,
+        -0.73,
+      );
     } else {
       const h = b.kind === "tower" ? 1.85 : b.kind === "market" ? 0.66 : 0.82;
       this.box(
@@ -298,7 +407,19 @@ export class IslandScene {
     }
     return root;
   }
-  update(city: City) {
+  update(city: City, paused = false) {
+    this.paused = paused;
+    this.night = city.tick % ECONOMY.ticksPerDay >= ECONOMY.ticksPerDay / 2;
+    this.sky.intensity = this.night ? 0.38 : 0.7;
+    this.sky.diffuse = Color3.FromHexString(this.night ? "#a0b3ed" : "#ffffff");
+    this.sun.intensity = this.night ? 0.15 : 0.55;
+    this.sun.diffuse = Color3.FromHexString(this.night ? "#a7b9ec" : "#fff3df");
+    // Shared window/core materials change once per state update, never per mesh or frame.
+    for (const color of ["#eaf0d9", "#b3a4e2"]) {
+      this.material(color).emissiveColor = Color3.FromHexString(color).scale(
+        this.night ? 0.45 : 0,
+      );
+    }
     for (const [id, mesh] of this.models)
       if (!city.buildings.some((b) => b.id === id)) {
         mesh.dispose();
