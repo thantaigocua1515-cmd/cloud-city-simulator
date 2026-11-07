@@ -982,3 +982,353 @@ kbd {
     display: none;
   }
 }
+/* Sprint 02: six always-visible economy indicators and scrollable blueprints. */
+.topbar {
+  gap: 16px;
+}
+.resources {
+  padding: 10px 4px;
+}
+.resources > div {
+  padding: 0 13px;
+  min-width: 102px;
+}
+.resources strong {
+  font-size: 16px;
+}
+.resources small {
+  font-size: 8px;
+}
+.resources em {
+  font-size: 10px;
+}
+.resource-icon {
+  font-size: 21px;
+}
+.resources .crystal-icon {
+  color: #a194c2;
+}
+.resources .shortage {
+  color: #a95442;
+  background: #f4ddd177;
+  border-radius: 8px;
+}
+.happiness-button {
+  text-align: left;
+  padding: 0 5px;
+  min-height: 44px;
+}
+.happiness-button strong,
+.happiness-button small {
+  display: block;
+}
+.building-card {
+  min-width: 122px;
+}
+.building-art.lumberMill {
+  color: #a78155;
+  font-size: 44px;
+}
+.building-art.harvester {
+  color: #a799c9;
+}
+.building-art.powerPlant {
+  color: #7e9eac;
+}
+.building-art.plaza {
+  color: #b7a66d;
+}
+.material-price {
+  display: block;
+  font-size: 8px;
+  color: #75846e;
+  margin-top: 6px;
+  white-space: nowrap;
+}
+.blueprint-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 14px;
+  padding: 9px 24px;
+  border-top: 1px solid #e5e8dc;
+  background: #edf1e680;
+  font-size: 9px;
+  color: #7c8c76;
+}
+.blueprint-info strong {
+  color: #526b4b;
+}
+.economy-panel {
+  position: absolute;
+  top: 110px;
+  right: 80px;
+  width: 360px;
+  max-height: calc(100% - 160px);
+  overflow: auto;
+  background: #fbfcf7;
+  border: 1px solid white;
+  border-radius: 16px;
+  box-shadow: 0 12px 50px #4b685244;
+  padding: 26px;
+  z-index: 6;
+  font-size: 11px;
+  line-height: 1.65;
+}
+.economy-panel p {
+  color: #71836e;
+}
+.economy-panel ul {
+  padding: 0;
+  list-style: none;
+}
+.economy-panel li {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid #e3e8dc;
+  padding: 6px 0;
+  gap: 8px;
+}
+.app.night {
+  background: radial-gradient(
+    ellipse at 48% 40%,
+    #425b6d 0,
+    #263b52 70%,
+    #1b3045 100%
+  );
+}
+.night .brand,
+.night .island-label h1 {
+  color: #e1e9dd;
+}
+.night .brand small,
+.night .island-label p,
+.night .island-meta,
+.night .island-label .eyebrow,
+.night .scene-caption,
+.night .bottom-bar,
+.night .bottom-bar button,
+.night .save-pill {
+  color: #c1d2c8;
+}
+.night .save-pill {
+  background: #263b5280;
+}
+.night .help-button {
+  color: #e1e9dd;
+}
+.night .sky-grain {
+  opacity: 0.08;
+}
+@media (max-width: 1200px) {
+  .topbar {
+    flex-wrap: wrap;
+  }
+  .brand {
+    flex: 1;
+  }
+  .resources {
+    order: 3;
+    width: 100%;
+    justify-content: space-around;
+  }
+  .resources > div {
+    flex: 1;
+    justify-content: center;
+  }
+  .island-label {
+    top: 182px;
+  }
+  .save-pill {
+    top: 180px;
+  }
+  .retry {
+    top: 215px;
+  }
+  .economy-panel {
+    top: 177px;
+  }
+}
+@media (max-width: 650px) {
+  .topbar {
+    gap: 10px;
+  }
+  .resources {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 5px 0;
+    row-gap: 5px;
+  }
+  .resources > div {
+    padding: 4px 6px;
+    min-width: 0;
+    gap: 5px;
+    justify-content: flex-start;
+  }
+  .resources > div:nth-child(3) {
+    border: 0;
+  }
+  .resources strong {
+    font-size: 13px;
+  }
+  .resources small {
+    font-size: 7px;
+  }
+  .resources em {
+    font-size: 8px;
+  }
+  .resource-icon {
+    font-size: 17px;
+  }
+  .happiness-button {
+    min-height: 44px;
+  }
+  .island-label {
+    top: 208px;
+  }
+  .island-label p {
+    display: none;
+  }
+  .island-label .eyebrow {
+    font-size: 6px;
+  }
+  .island-label h1 {
+    font-size: 22px;
+  }
+  .save-pill {
+    top: 210px;
+  }
+  .retry {
+    top: 239px;
+    font-size: 8px;
+  }
+  .island-meta {
+    font-size: 7px;
+  }
+  .world-controls {
+    top: 37%;
+  }
+  .help-panel,
+  .economy-panel {
+    top: 190px;
+    left: 10px;
+    right: 10px;
+    width: auto;
+    max-height: calc(100% - 220px);
+  }
+  .blueprint-info {
+    padding: 7px 12px;
+    gap: 4px 9px;
+    font-size: 8px;
+    max-height: 58px;
+    overflow-y: auto;
+  }
+  .build-dock {
+    bottom: 39px;
+  }
+  .building-card {
+    min-width: 122px;
+  }
+  .material-price {
+    font-size: 8px;
+  }
+  .building-art {
+    height: 42px;
+  }
+  canvas {
+    top: 110px;
+    height: calc(100% - 305px);
+  }
+  .app {
+    min-height: 740px;
+  }
+}
+@media (max-height: 500px) and (min-width: 651px) {
+  .app {
+    min-height: 360px;
+  }
+  .topbar {
+    width: 56%;
+    gap: 5px;
+    margin: 8px;
+  }
+  .brand {
+    font-size: 12px;
+  }
+  .brand small {
+    display: none;
+  }
+  .help-button {
+    min-height: 32px;
+    width: 32px;
+  }
+  .resources {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2px;
+    padding: 3px 0;
+  }
+  .resources > div {
+    min-width: 0;
+    padding: 2px 4px;
+    gap: 4px;
+    justify-content: flex-start;
+  }
+  .resources > div:nth-child(3) {
+    border: 0;
+  }
+  .resources strong {
+    font-size: 11px;
+  }
+  .resources small {
+    font-size: 6px;
+  }
+  .resources em {
+    font-size: 7px;
+  }
+  .happiness-button {
+    min-height: 26px;
+  }
+  .resource-icon {
+    display: none;
+  }
+  .island-label {
+    top: 158px;
+  }
+  .island-label h1 {
+    font-size: 18px;
+  }
+  .island-label .eyebrow {
+    display: none;
+  }
+  .blueprint-info {
+    max-height: 52px;
+    overflow: auto;
+    padding: 5px 10px;
+    font-size: 8px;
+  }
+  .building-card {
+    min-width: 100px;
+    flex-basis: 40%;
+  }
+  .material-price {
+    font-size: 7px;
+  }
+  .economy-panel,
+  .help-panel {
+    top: 40px;
+    left: 10px;
+    width: 53%;
+    max-height: calc(100% - 80px);
+  }
+  canvas {
+    top: 85px;
+    height: calc(100% - 110px);
+    width: 57%;
+  }
+}
+
+@media (max-height: 500px) and (min-width: 651px) {
+  .topbar {
+    width: calc(57% - 28px);
+  }
+}

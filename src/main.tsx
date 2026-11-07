@@ -8,7 +8,7 @@ import {
   place,
   placementError,
   remove,
-  stats,
+  ECONOMY,
   type BuildingKind,
   type Cell,
   type City,
@@ -16,6 +16,7 @@ import {
 } from "./simulation/city";
 import { IndexedDBSaveStore } from "./platform/storage";
 import { IslandScene } from "./rendering/IslandScene";
+import { EconomyHUD, EconomyDetails } from "./ui/EconomyHUD";
 import "./style.css";
 const store = new IndexedDBSaveStore();
 const glyphs: Record<BuildingKind, string> = {
@@ -25,6 +26,10 @@ const glyphs: Record<BuildingKind, string> = {
   turbine: "✣",
   market: "▰",
   path: "▦",
+  lumberMill: "⚒",
+  harvester: "◇",
+  powerPlant: "ϟ",
+  plaza: "✦",
 };
 function App() {
   const [city, setCity] = useState<City | null>(null);
@@ -40,6 +45,7 @@ function App() {
   const [savedCity, setSavedCity] = useState<City | null>(null);
   const [storageReady, setStorageReady] = useState(false);
   const [help, setHelp] = useState(false);
+  const [economyHelp, setEconomyHelp] = useState(false);
   const [error, setError] = useState("");
   const canvas = useRef<HTMLCanvasElement>(null);
   const view = useRef<IslandScene | null>(null);
@@ -117,9 +123,9 @@ function App() {
     };
   }, [interact]);
   useEffect(() => {
-    if (city) view.current?.update(city);
+    if (city) view.current?.update(city, paused);
     interact(hover.current, false);
-  }, [city, kind, rotation, mode, interact]);
+  }, [city, kind, rotation, mode, paused, interact]);
   useEffect(() => {
     if (paused || !city) return;
     const id = window.setInterval(() => {
@@ -130,7 +136,7 @@ function App() {
   }, [paused, !!city]);
   // A short debounce coalesces edits; transactions remain ordered by IndexedDB.
   useEffect(() => {
-    if (!city || !storageReady) return;
+    if (!city || !storageReady || city === savedCity) return;
     setSaveState("Saving…");
     let active = true;
     const id = window.setTimeout(() => {
@@ -150,7 +156,7 @@ function App() {
       active = false;
       clearTimeout(id);
     };
-  }, [city, storageReady]);
+  }, [city, storageReady, savedCity]);
   useEffect(() => {
     const persist = () => {
       const c = current.current.city;
@@ -182,15 +188,22 @@ function App() {
       if (e.key === "Escape") {
         setMode("explore");
         setHelp(false);
+        setEconomyHelp(false);
       }
       if (e.key === "Delete") setMode("remove");
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
   }, []);
-  const totals = city ? stats(city) : { population: 0, income: 0 };
+  const night =
+    !!city && city.tick % ECONOMY.ticksPerDay >= ECONOMY.ticksPerDay / 2;
+  const selected = CATALOG[kind];
   return (
-    <main className="app">
+    <main
+      className={`app ${night ? "night" : "day"}`}
+      data-testid="city"
+      data-tick={city?.tick ?? 0}
+    >
       <div className="sky-grain" aria-hidden="true" />
       <canvas
         ref={canvas}
@@ -203,38 +216,20 @@ function App() {
             CLOUD CITY<small>A LITTLE HIGHER. A LITTLE HAPPIER.</small>
           </span>
         </a>
-        <div className="resources" aria-label="City resources">
-          <div>
-            <span className="resource-icon coin">◈</span>
-            <span>
-              <strong data-testid="credits">
-                {city?.credits.toLocaleString() ?? "—"}
-              </strong>
-              <small>Cloud coins</small>
-            </span>
-          </div>
-          <div>
-            <span className="resource-icon">♙</span>
-            <span>
-              <strong data-testid="population">{totals.population}</strong>
-              <small>Residents</small>
-            </span>
-          </div>
-          <div className="income">
-            <span className="resource-icon">↗</span>
-            <span>
-              <strong>
-                +{totals.income}
-                <em> / 10s</em>
-              </strong>
-              <small>City income</small>
-            </span>
-          </div>
-        </div>
+        <EconomyHUD
+          city={city}
+          onExplain={() => {
+            setEconomyHelp((v) => !v);
+            setHelp(false);
+          }}
+        />
         <button
           className="help-button"
           aria-label="How to play"
-          onClick={() => setHelp((v) => !v)}
+          onClick={() => {
+            setHelp((v) => !v);
+            setEconomyHelp(false);
+          }}
         >
           ?
         </button>
@@ -246,8 +241,8 @@ function App() {
         <h1>{city?.name ?? "Zephyr Isle"}</h1>
         <p>Room to grow. Space to breathe.</p>
         <span className="island-meta">
-          12 × 12 island <span>·</span> Day{" "}
-          {Math.floor((city?.tick ?? 0) / 6) + 1}
+          12 × 12 island <span>·</span> {night ? "Night" : "Day"}{" "}
+          {Math.floor((city?.tick ?? 0) / ECONOMY.ticksPerDay) + 1}
         </span>
       </section>
       <div className="save-pill" role="status">
@@ -306,6 +301,9 @@ function App() {
           {error}
         </div>
       )}
+      {economyHelp && city && (
+        <EconomyDetails city={city} onClose={() => setEconomyHelp(false)} />
+      )}
       {help && (
         <section className="help-panel">
           <button
@@ -324,12 +322,16 @@ function App() {
           </p>
           <p>
             Drag to pan. Pinch or scroll to zoom. Use the arrow buttons to
-            orbit. Remove a building for a 50% refund.
+            orbit. Remove a building for a 50% coin and material refund.
           </p>
           <p>
-            Your city earns coins every 10 seconds while visible and unpaused.
-            Changes save automatically on this device. No offline income in
-            Sprint 01.
+            Your city advances every 10 seconds while visible and unpaused.
+            Build a Sky Lumber Mill for Wood and a Crystal Harvester for Sky
+            Crystal. Wind keepers produce 12 power; Crystal Power Plants use 1
+            crystal per tick for 24 power. Shortages stop power consumers.
+            Gardens and powered Cloud Plazas raise Happiness; 60% happiness
+            allows growth and full income. Changes save automatically on this
+            device; no offline income.
           </p>
           <details>
             <summary>Keyboard & accessible tile controls</summary>
@@ -373,17 +375,22 @@ function App() {
         </div>
         <div className="dock-body">
           <nav className="categories" aria-label="Building categories">
-            {["All buildings", "Homes", "Nature", "Utilities", "Services"].map(
-              (c) => (
-                <button
-                  key={c}
-                  aria-pressed={category === c}
-                  onClick={() => setCategory(c)}
-                >
-                  {c}
-                </button>
-              ),
-            )}
+            {[
+              "All buildings",
+              "Homes",
+              "Nature",
+              "Utilities",
+              "Services",
+              "Industry",
+            ].map((c) => (
+              <button
+                key={c}
+                aria-pressed={category === c}
+                onClick={() => setCategory(c)}
+              >
+                {c}
+              </button>
+            ))}
           </nav>
           <div className="building-list">
             {(Object.keys(CATALOG) as BuildingKind[])
@@ -411,14 +418,40 @@ function App() {
                     ◈ {CATALOG[k].cost}{" "}
                     <small>{CATALOG[k].size.join(" × ")}</small>
                   </span>
+                  <span className="material-price">
+                    ♧ {CATALOG[k].materials.wood} Wood · ◇{" "}
+                    {CATALOG[k].materials.crystal}
+                  </span>
                 </button>
               ))}
           </div>
         </div>
+        <div className="blueprint-info" aria-label="Selected building details">
+          <strong>{selected.name}</strong>
+          <span>Capacity +{selected.people}</span>
+          <span>
+            Power{" "}
+            {selected.generation
+              ? `+${selected.generation}`
+              : `−${selected.energy}`}
+          </span>
+          <span>
+            Produces +{selected.production.wood} Wood / +
+            {selected.production.crystal} Crystal
+          </span>
+          <span>
+            Uses {selected.consumption.wood} Wood /{" "}
+            {selected.consumption.crystal} Crystal per tick
+          </span>
+          <span>
+            Happiness +{selected.happiness} · Coins +{selected.income}/tick
+            before penalties
+          </span>
+        </div>
         <div className="dock-footer">
           <p role="status">
             {mode === "remove"
-              ? "Removal mode · tap a building for a 50% refund."
+              ? "Removal mode · tap a building for a 50% coin and material refund."
               : mode === "explore"
                 ? "Explore mode · drag to look around your island."
                 : notice}
@@ -436,7 +469,7 @@ function App() {
       </section>
       <footer className="bottom-bar">
         <span>
-          ✦ SPRINT 01 <i> / </i> THE FIRST CHAPTER
+          ✦ SPRINT 02 <i> / </i> LIVING SKY CITY
         </span>
         <button
           aria-label={paused ? "Resume simulation" : "Pause simulation"}

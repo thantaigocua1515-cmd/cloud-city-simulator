@@ -13,7 +13,9 @@ import {
   type City,
 } from "./city";
 const empty = (): City => ({
-  version: 1,
+  version: 2,
+  materials: { wood: 500, crystal: 250 },
+  population: 0,
   name: "Test",
   credits: 1000,
   tick: 0,
@@ -58,10 +60,17 @@ describe("city rules", () => {
   });
   it("advances deterministically with derived population and income", () => {
     const city = place(place(empty(), "cottage", 0, 0, 0), "turbine", 1, 0, 0);
-    expect(stats(city)).toEqual({ population: 4, income: 16 });
+    expect(stats(city)).toMatchObject({
+      population: 0,
+      capacity: 4,
+      income: 8,
+      happiness: 55,
+      generated: 12,
+      demand: 1,
+    });
     expect(advance(city)).toEqual({
       ...city,
-      credits: city.credits + 16,
+      credits: city.credits + 8,
       tick: 1,
     });
     expect(city.tick).toBe(0);
@@ -71,7 +80,7 @@ describe("city rules", () => {
     expect(parseCity(JSON.parse(JSON.stringify(city)))).toEqual(city);
     for (const bad of [
       null,
-      { ...city, version: 2 },
+      { ...city, version: 3 },
       { ...city, credits: -1 },
       { ...city, nextId: 1 },
       { ...city, tick: 1.5 },
